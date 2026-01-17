@@ -10,12 +10,16 @@ Long_uint::Long_uint(uint32_t value) {
 }
 
 int Long_uint::cmp(const Long_uint& other) const {
-    for (int i = word - 1; i >= 0; --i) {
-        if (data[i] > other.data[i]) return 1;
-        if (data[i] < other.data[i]) return -1;
-    }
+    if (data.size() != other.data.size())
+        return data.size() < other.data.size() ? -1 : 1;
+
+    for (int i = (int)data.size() - 1; i >= 0; --i)
+        if (data[i] != other.data[i])
+            return data[i] < other.data[i] ? -1 : 1;
+
     return 0;
 }
+
 
 Long_uint Long_uint::add(const Long_uint& a, const Long_uint& b) {
     Long_uint c;
@@ -50,16 +54,16 @@ Long_uint Long_uint::bit_zsuv_l(size_t bits) const {
     Long_uint r;
     size_t w = bits / word_bit;
     size_t b = bits % word_bit;
-
     for (int i = word - 1; i >= 0; --i) {
-        if ((int)i - (int)w < 0) continue;
+        if ((size_t)i < w) continue;
         uint64_t v = data[i - w];
         v <<= b;
         r.data[i] |= (uint32_t)v;
-        if (b && i - w - 1 >= 0) r.data[i] |= data[i - w - 1] >> (word_bit - b);
+        if (b && (size_t)i >= w + 1) r.data[i] |= data[i - w - 1] >> (word_bit - b);
     }
     return r;
 }
+
 
 Long_uint Long_uint::bit_zsuv_r(size_t bits) const {
     Long_uint r;
@@ -152,4 +156,66 @@ Long_uint Long_uint::from_hex(const std::string& str) {
         x.data[0] |= v;
     }
     return x;
+}
+
+Long_uint Long_uint::gcd(Long_uint a, Long_uint b) {
+    Long_uint q, r;
+    while (!b.data.empty()) {
+        divmod(a, b, q, r);
+        a = b;
+        b = r;
+    }
+    return a;
+}
+
+Long_uint Long_uint::lcm(const Long_uint& a, const Long_uint& b) {
+    Long_uint g = gcd(a, b);
+    Long_uint q, r;
+    divmod(multiply(a, b), g, q, r);
+    return q;
+}
+
+Long_uint Long_uint::add_mod(const Long_uint& a, const Long_uint& b, const Long_uint& n) {
+    Long_uint r = add(a, b);
+    if (r.cmp(n) >= 0) r = subtract(r, n);
+    return r;
+}
+
+Long_uint Long_uint::sub_mod(const Long_uint& a, const Long_uint& b, const Long_uint& n) {
+    if (a.cmp(b) >= 0) return subtract(a, b);
+    return subtract(add(a, n), b);
+}
+
+Long_uint Long_uint::mul_mod(const Long_uint& a, const Long_uint& b, const Long_uint& n, const Long_uint& m) {
+    return barrett_reduce(multiply(a, b), n, m);
+}
+
+Long_uint Long_uint::sq_mod(const Long_uint& a, const Long_uint& n, const Long_uint& m) {
+    return barrett_reduce(multiply(a, a), n, m);
+}
+
+Long_uint Long_uint::barrett_reduce(const Long_uint& x, const Long_uint& n, const Long_uint& m) {
+    int k = n.bit_length();
+    Long_uint q = Long_uint::multiply(x, m);
+    q = q.bit_zsuv_r(2 * k);
+    Long_uint r = Long_uint::subtract(x, Long_uint::multiply(q, n));
+    while (r.cmp(n) >= 0) r = Long_uint::subtract(r, n);
+    return r;
+}
+
+
+Long_uint Long_uint::pow_mod(const Long_uint& a, const Long_uint& d,const Long_uint& n, const Long_uint& m) {
+    Long_uint result(1);
+    Long_uint base = a;
+    Long_uint exp = d;
+    Long_uint q, r;
+
+    while (exp.cmp(Long_uint(0)) > 0) {
+        divmod(exp, Long_uint(2), q, r);
+        if (r.cmp(Long_uint(0)) != 0) result = mul_mod(result, base, n, m);
+        base = sq_mod(base, n, m);
+        exp = q;
+    }
+
+    return result;
 }

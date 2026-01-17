@@ -76,27 +76,28 @@ void timer_cycles() {
     std::cout << "Pow: " << pow_cycles << "\n";
 }
 
-
-
 int main() {
-    std::string sA, sB, sC, sX;
+    std::string sA, sB, sC, sX, sN, sexp;
     
     std::cout << "Enter A (HEX): ";
     std::cin >> sA;
-
     std::cout << "Enter B (HEX): ";
     std::cin >> sB;
-
     std::cout << "Enter C (HEX): ";
     std::cin >> sC;
-
     std::cout << "Enter x (HEX): ";
     std::cin >> sX;
+    std::cout << "Enter n > 64 (HEX): ";
+    std::cin >> sN;
+    std::cout << "Enter exp: ";
+    std::cin >> sexp;
 
     Long_uint A = Long_uint::from_hex(sA);
     Long_uint B = Long_uint::from_hex(sB);
     Long_uint C = Long_uint::from_hex(sC);
     Long_uint x = Long_uint::from_hex(sX);
+    Long_uint n = Long_uint::from_hex(sN);
+    Long_uint exp = Long_uint::from_hex(sexp);
 
     Long_uint sum = Long_uint::add(A, B);
     Long_uint diff = Long_uint::subtract(A, B);
@@ -118,6 +119,7 @@ int main() {
     Long_uint ccsum = Long_uint::add(ca, cb);
 
 
+    std::cout << "=== LAB 1 ===\n";
     std::cout << "\nResults:\n";
     std::cout << "A + B = " << sum.to_hex() << "\n";
     std::cout << "A - B = " << diff.to_hex() << "\n";
@@ -131,6 +133,42 @@ int main() {
     std::cout << "C * (A + B) = " << csum.to_hex() << "\n";
     std::cout << "(A + B) * C = " << sumc.to_hex() << "\n";
     std::cout << "CA + CB = " << ccsum.to_hex() << "\n";
+
+    std::cout << "\n=== LAB 2 ===\n";
+
+    int k = n.bit_length();
+    Long_uint four_to_k(1);
+    four_to_k = four_to_k.bit_zsuv_l(2 * k); 
+    Long_uint m, temp;
+    Long_uint::divmod(four_to_k, n, m, temp);
+    std::cout << "n = " << n.to_hex() << "\n";
+    std::cout << "k = " << k << "\n";
+    std::cout << "Barrett constant m = " << m.to_hex() << "\n";
+    Long_uint gcd = Long_uint::gcd(A, B);
+
+    std::cout << "gcd(A, B) = " << gcd.to_hex() << "\n";
+    Long_uint gcd_an = Long_uint::gcd(A, n);
+    std::cout << "gcd(A, n) = " << gcd_an.to_hex() << "\n";
+    Long_uint lcm = Long_uint::lcm(A, B);
+    std::cout << "lcm(A, B) = " << lcm.to_hex() << "\n";
+
+    Long_uint add_mod = Long_uint::add_mod(A, B, n);
+    std::cout << "(A + B) mod n = " << add_mod.to_hex() << "\n";
+    Long_uint sub_mod = Long_uint::sub_mod(A, B, n);
+    std::cout << "(A - B) mod n = " << sub_mod.to_hex() << "\n";
+    Long_uint mul_mod = Long_uint::mul_mod(A, B, n, m);
+    std::cout << "(A * B) mod n = " << mul_mod.to_hex() << "\n";
+    Long_uint sq_mod = Long_uint::sq_mod(A, n, m);
+    std::cout << "(A^2) mod n = " << sq_mod.to_hex() << "\n";
+    
+    Long_uint large_value = Long_uint::multiply(A, B);
+    Long_uint barrett_result = Long_uint::barrett_reduce(large_value, n, m);
+    std::cout << "Barrett reduce of (A*B):\n";
+    std::cout << "Result: " << barrett_result.to_hex() << "\n";
+    
+    Long_uint exponent(exp);  
+    Long_uint pow_mod = Long_uint::pow_mod(A, exponent, n, m);
+    std::cout << "(A^exp) mod n = " << pow_mod.to_hex() << "\n";
 
     timer();
     timer_cycles();
