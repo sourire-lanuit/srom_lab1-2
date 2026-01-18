@@ -40,10 +40,14 @@ public:
 
     static Long_uint add_mod(const Long_uint& a, const Long_uint& b, const Long_uint& n);
     static Long_uint sub_mod(const Long_uint& a, const Long_uint& b, const Long_uint& n);
-    static Long_uint pow_mod(const Long_uint& a, const Long_uint& d, const Long_uint& n, const Long_uint& m);
+    static Long_uint pow_mod(const Long_uint& a, const Long_uint& d, const Long_uint& n);
     static Long_uint mul_mod(const Long_uint& a, const Long_uint& b, const Long_uint& n, const Long_uint& m);
     static Long_uint sq_mod(const Long_uint& a, const Long_uint& n, const Long_uint& m);
     static Long_uint barrett_reduce(const Long_uint& x, const Long_uint& n, const Long_uint& m);
+    static Long_uint barrett_mu(const Long_uint& n);
+
+    bool is_zero() const;
+    bool is_odd() const;
 };
 
 #endif 

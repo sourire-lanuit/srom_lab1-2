@@ -52,14 +52,16 @@ Long_uint Long_uint::subtract(const Long_uint& a, const Long_uint& b) {
 
 Long_uint Long_uint::bit_zsuv_l(size_t bits) const {
     Long_uint r;
+    if (bits >= max_bit) return r; 
     size_t w = bits / word_bit;
     size_t b = bits % word_bit;
-    for (int i = word - 1; i >= 0; --i) {
-        if ((size_t)i < w) continue;
-        uint64_t v = data[i - w];
-        v <<= b;
-        r.data[i] |= (uint32_t)v;
-        if (b && (size_t)i >= w + 1) r.data[i] |= data[i - w - 1] >> (word_bit - b);
+    
+    for (size_t i = w; i < word; ++i) {
+        size_t src_idx = i - w;
+        r.data[i] = data[src_idx] << b;
+        if (b && src_idx > 0) {
+            r.data[i] |= data[src_idx - 1] >> (word_bit - b);
+        }
     }
     return r;
 }
@@ -106,20 +108,20 @@ Long_uint Long_uint::square(const Long_uint& a) {
 
 void Long_uint::divmod(const Long_uint& A, const Long_uint& B, Long_uint& Q, Long_uint& R) {
     Q = Long_uint(0);
-    R = A;
+    R = Long_uint(0);
 
-    int k = B.bit_length();
-    if (k == 0) return;
+    if (B.is_zero()) return;
 
-    while (R.cmp(B) >= 0) {
-        int t = R.bit_length();
-        Long_uint C = B.bit_zsuv_l(t - k);
-        if (R.cmp(C) < 0) {
-            t--;
-            C = B.bit_zsuv_l(t - k);
+    for (int i = A.bit_length() - 1; i >= 0; --i) {
+        R = R.bit_zsuv_l(1);
+        if ((A.data[i / word_bit] >> (i % word_bit)) & 1) {
+            R.data[0] |= 1; 
         }
-        R = subtract(R, C);
-        Q.data[(t - k) / word_bit] |= 1u << ((t - k) % word_bit);
+        
+        if (R.cmp(B) >= 0) {
+            R = subtract(R, B);
+            Q.data[i / word_bit] |= (1u << (i % word_bit));
+        }
     }
 }
 
@@ -127,14 +129,14 @@ void Long_uint::divmod(const Long_uint& A, const Long_uint& B, Long_uint& Q, Lon
 Long_uint Long_uint::power(Long_uint base, Long_uint exp) {
     Long_uint result(1);
 
-    while (exp.cmp(Long_uint(0)) > 0) {
-        if (exp.data[0] & 1) result = multiply(result, base);
+    while (!exp.is_zero()) {
+        if (exp.is_odd()) result = multiply(result, base);
         base = square(base);
-        exp = exp.bit_zsuv_l(0);
-        exp.data[0] >>= 1;
+        exp = exp.bit_zsuv_r(1);
     }
     return result;
 }
+
 
 std::string Long_uint::to_hex() const {
     static const char* H = "0123456789ABCDEF";
@@ -159,8 +161,9 @@ Long_uint Long_uint::from_hex(const std::string& str) {
 }
 
 Long_uint Long_uint::gcd(Long_uint a, Long_uint b) {
+    if (a.cmp(b) < 0) std::swap(a, b);
     Long_uint q, r;
-    while (!b.data.empty()) {
+    while (!b.is_zero()) {
         divmod(a, b, q, r);
         a = b;
         b = r;
@@ -194,28 +197,45 @@ Long_uint Long_uint::sq_mod(const Long_uint& a, const Long_uint& n, const Long_u
     return barrett_reduce(multiply(a, a), n, m);
 }
 
+Long_uint Long_uint::barrett_mu(const Long_uint& n) {
+    int k = n.bit_length();
+    Long_uint one(1);
+    Long_uint b = one.bit_zsuv_l(2 * k);
+    Long_uint q, r;
+    Long_uint::divmod(b, n, q, r);
+    return q; 
+}
+
 Long_uint Long_uint::barrett_reduce(const Long_uint& x, const Long_uint& n, const Long_uint& m) {
     int k = n.bit_length();
     Long_uint q = Long_uint::multiply(x, m);
     q = q.bit_zsuv_r(2 * k);
     Long_uint r = Long_uint::subtract(x, Long_uint::multiply(q, n));
-    while (r.cmp(n) >= 0) r = Long_uint::subtract(r, n);
+    if (r.cmp(n) >= 0) r = Long_uint::subtract(r, n);
+    if (r.cmp(n) >= 0) r = Long_uint::subtract(r, n);
+
     return r;
 }
 
+bool Long_uint::is_zero() const {
+    for (uint32_t w : data) if (w != 0) return false;
+    return true;
+}
 
-Long_uint Long_uint::pow_mod(const Long_uint& a, const Long_uint& d,const Long_uint& n, const Long_uint& m) {
+bool Long_uint::is_odd() const {
+    return !data.empty() && (data[0] & 1);
+}
+
+
+Long_uint Long_uint::pow_mod(const Long_uint& a, const Long_uint& d,const Long_uint& n) {
+    Long_uint mu = barrett_mu(n);
     Long_uint result(1);
-    Long_uint base = a;
+    Long_uint base = barrett_reduce(a, n, mu);
     Long_uint exp = d;
-    Long_uint q, r;
-
-    while (exp.cmp(Long_uint(0)) > 0) {
-        divmod(exp, Long_uint(2), q, r);
-        if (r.cmp(Long_uint(0)) != 0) result = mul_mod(result, base, n, m);
-        base = sq_mod(base, n, m);
-        exp = q;
+    while (!exp.is_zero()) {
+        if (exp.is_odd())  result = barrett_reduce(multiply(result, base), n, mu);
+        base = barrett_reduce(multiply(base, base), n, mu);
+        exp = exp.bit_zsuv_r(1);
     }
-
     return result;
 }

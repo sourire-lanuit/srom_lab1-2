@@ -144,8 +144,8 @@ int main() {
     std::cout << "n = " << n.to_hex() << "\n";
     std::cout << "k = " << k << "\n";
     std::cout << "Barrett constant m = " << m.to_hex() << "\n";
+    
     Long_uint gcd = Long_uint::gcd(A, B);
-
     std::cout << "gcd(A, B) = " << gcd.to_hex() << "\n";
     Long_uint gcd_an = Long_uint::gcd(A, n);
     std::cout << "gcd(A, n) = " << gcd_an.to_hex() << "\n";
@@ -167,7 +167,7 @@ int main() {
     std::cout << "Result: " << barrett_result.to_hex() << "\n";
     
     Long_uint exponent(exp);  
-    Long_uint pow_mod = Long_uint::pow_mod(A, exponent, n, m);
+    Long_uint pow_mod = Long_uint::pow_mod(A, exponent, n);
     std::cout << "(A^exp) mod n = " << pow_mod.to_hex() << "\n";
 
     timer();
